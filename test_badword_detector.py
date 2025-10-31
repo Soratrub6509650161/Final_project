@@ -1,13 +1,3 @@
-"""
-การทดสอบระบบตรวจจับคำหยาบ Twitch Bad Word Detector
-สำหรับโปรเจคจบมหาลัย
-
-วิธีใช้:
-1. ติดตั้ง pytest: pip install pytest pandas openpyxl
-2. รันทดสอบ: pytest test_badword_detector.py -v
-3. ดูรายงาน: pytest test_badword_detector.py -v --html=report.html
-"""
-
 import pytest
 import time
 import sys
@@ -103,10 +93,10 @@ class TestAccuracy:
             ("วันนี้อากาศดีมาก", False),
             ("hello everyone", False),
             ("nice stream", False),
-            ("ไอ้สัสว์", True),  # แก้ตามคำหยาบจริง
-            ("you stupid", True),  # แก้ตามคำหยาบจริง
-            ("คุณ ไ อ้ ส ั สว์", True),  # คำหยาบแทรกช่องว่าง
-            ("stu pid", True),  # คำหยาบแทรกช่องว่าง
+            ("ไอ้สัสว์", True),  
+            ("you stupid", True),  
+            ("คุณ ไ อ้ ส ั สว์", True),  
+            ("stu pid", True), 
         ]
     
     def test_calculate_accuracy(self, worker, test_dataset):
