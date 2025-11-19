@@ -695,10 +695,7 @@ class DashboardWindow(QWidget):
                 
         except Exception as e:
             QMessageBox.warning(self, 'ข้อผิดพลาด', f'ไม่สามารถล้างสถิติได้: {e}')
-    
-    # ========== [ START EDIT 1/2 ] ==========
-    # เพิ่มฟังก์ชันนี้เข้าไปในคลาส DashboardWindow
-    # (วางไว้หลังฟังก์ชัน clear_stats ได้เลยครับ)
+
     def apply_dark_mode(self):
         """ใช้ Dark Mode Style Sheet กับหน้าต่าง Dashboard"""
         self.setStyleSheet("""
@@ -729,8 +726,7 @@ class DashboardWindow(QWidget):
                 background-color: #E64A19;
             }
         """)
-    # ========== [ END EDIT 1/2 ] ==========
-
+    
 class BadWordDetectorApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -1512,17 +1508,15 @@ class BadWordDetectorApp(QWidget):
 
     def open_dashboard(self):
         """เปิดหน้า Dashboard"""
-        
-        # ========== [ START EDIT 2/2 ] ==========
-        # แก้ไข 2 บรรทัดเดิม เป็น 4 บรรทัดนี้
+    
         self.dashboard_window = DashboardWindow(self)
         
         # ตรวจสอบว่า Dark Mode กำลังทำงานหรือไม่
         if self.dark_mode_checkbox.isChecked():
-            self.dashboard_window.apply_dark_mode() # ถ้าใช่ ให้สั่งใช้ Dark Mode
+            self.dashboard_window.apply_dark_mode() 
             
         self.dashboard_window.show()
-        # ========== [ END EDIT 2/2 ] ==========
+       
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
