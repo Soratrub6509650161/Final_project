@@ -121,7 +121,7 @@ class TwitchChatWorker(QObject):
             # ขั้นตอนที่ 3: ตรวจสอบแต่ละคำ
             found_words = []
             for word in words_to_check:
-                if len(word) >= 3:  # ตรวจเฉพาะคำที่ยาวพอ
+                if len(word) >= 3: 
                     if word in self.badwords_en:
                         found_words.append(word)
                         self.logger.info(f"🚨 Found English profanity: '{word}'")
@@ -245,7 +245,7 @@ class TwitchChatWorker(QObject):
                 # เพิ่มข้อมูลใหม่เข้า buffer
                 buffer += data
                 
-                # แยกข้อความที่สมบูรณ์ (ลงท้ายด้วย \r\n หรือ \n)
+                # แยกข้อความที่สมบูรณ์ (ลงท้ายด้วย \n)
                 while '\n' in buffer:
                     line, buffer = buffer.split('\n', 1)
                     line = line.rstrip('\r')
@@ -650,8 +650,8 @@ class DashboardWindow(QWidget):
                 # อัพเดทสถิติประสิทธิภาพ
                 if hasattr(self.parent, 'performance_stats'):
                     # เวลาการตรวจจับเฉลี่ย
-                    avg_time = self.parent.performance_stats.get('avg_detection_time', 0)
-                    self.avg_detection_label.setText(f'{avg_time:.3f} วินาที')
+                    avg_time_ms = self.parent.performance_stats.get('avg_detection_time', 0) * 1000
+                    self.avg_detection_label.setText(f'{avg_time_ms:.2f} ms')
                     
                     # การใช้ Memory
                     memory_usage = self.parent.performance_stats.get('memory_usage', 0)
@@ -676,6 +676,8 @@ class DashboardWindow(QWidget):
         """ล้างสถิติทั้งหมด"""
         try:
             if self.parent:
+                # ใช้เมทอดหลักเพื่อให้ UI ใต้ Twitch channel ถูกรีเซ็ตด้วย
+                self.parent.clear_chat_messages()
                 self.parent.detection_count = 0
                 self.parent.detection_times = []
                 self.parent.twitch_total_messages = 0
@@ -789,15 +791,17 @@ class BadWordDetectorApp(QWidget):
             self.log_error(f"Error updating performance stats: {e}")
 
     def show_memory_warning(self, memory_usage):
-        """แสดง warning เมื่อ memory ใช้เยอะ"""
-        if not hasattr(self, '_last_memory_warning') or \
-        (datetime.now() - self._last_memory_warning).seconds > 60:
-            self._last_memory_warning = datetime.now()
+        """แสดง warning เมื่อ memory ใช้เยอะ (เตือนแค่ครั้งเดียว)"""
+        # เช็คว่าเคยเตือนไปหรือยัง? (ถ้ายังไม่เคย หรือค่าเป็น False ให้ทำต่อ)
+        if not getattr(self, 'memory_warning_shown', False):
             
-            # แสดง warning พร้อมแนะนำ
+            # 1. ตั้งค่าว่า "เตือนแล้วนะ" (ครั้งหน้าจะได้ไม่เข้าเงื่อนไขนี้อีก)
+            self.memory_warning_shown = True
+            
+            # 2. แสดงข้อความแจ้งเตือน
             msg = f'การใช้หน่วยความจำสูง: {memory_usage:.1f} KB\n'
             msg += f'ข้อความที่เก็บ: {int(memory_usage / 0.1)} ข้อความ\n'
-            msg += 'คลิก "ล้างข้อมูลทั้งหมด" เพื่อลดการใช้หน่วยความจำ'
+            msg += 'ระบบจะไม่แจ้งเตือนซ้ำจนกว่าคุณจะกด "ล้างข้อมูลทั้งหมด"'
             
             QMessageBox.information(self, 'แจ้งเตือนการใช้หน่วยความจำ', msg)
 
@@ -1162,6 +1166,7 @@ class BadWordDetectorApp(QWidget):
         """เมื่อได้รับข้อความจาก Twitch"""
         try:
             self.twitch_total_messages += 1
+            self.twitch_total_label.setText(str(self.twitch_total_messages))
             
             # แสดงข้อความใน chat tab
             timestamp = datetime.now().strftime('%H:%M:%S')
@@ -1186,7 +1191,7 @@ class BadWordDetectorApp(QWidget):
     def on_twitch_bad_word(self, username, message, bad_words):
         """เมื่อพบคำหยาบใน Twitch"""
         try:
-            start_time = time.time()
+            start_time = time.perf_counter()
             
             timestamp = datetime.now().strftime('%H:%M:%S')
             
@@ -1209,9 +1214,10 @@ class BadWordDetectorApp(QWidget):
             self.detection_count += 1
             self.detection_times.append(datetime.now())
             self.twitch_bad_word_count += 1
+            self.twitch_bad_label.setText(str(self.twitch_bad_word_count))
             
             # คำนวณเวลาการตรวจจับ
-            detection_time = time.time() - start_time
+            detection_time = time.perf_counter() - start_time
             self.performance_stats['total_detection_time'] += detection_time
             self.performance_stats['detection_count'] += 1
             self.performance_stats['avg_detection_time'] = (
@@ -1310,6 +1316,7 @@ class BadWordDetectorApp(QWidget):
             self.twitch_bad_word_count = 0
             self.twitch_total_label.setText('0')
             self.twitch_bad_label.setText('0')
+            self.memory_warning_shown = False
                 
         except Exception as e:
             self.log_error(f"Error clearing chat messages: {e}")
@@ -1344,12 +1351,12 @@ class BadWordDetectorApp(QWidget):
 
     def open_badword_manager(self, filename):
         dlg = BadWordManagerDialog(filename, self)
-        if dlg.exec_():
-            # reload badwords after editing
-            self.bad_words = self.load_all_bad_words()
-            # อัพเดท bad_words ใน worker ด้วย
-            if self.twitch_thread and self.twitch_thread.worker:
-                self.twitch_thread.worker.badwords_th, self.twitch_thread.worker.badwords_en = self.twitch_thread.worker.load_bad_words()
+        dlg.exec_()
+        # reload badwords after editing
+        self.bad_words = self.load_all_bad_words()
+        # อัพเดท bad_words ใน worker ด้วย
+        if self.twitch_thread and self.twitch_thread.worker:
+            self.twitch_thread.worker.badwords_th, self.twitch_thread.worker.badwords_en = self.twitch_thread.worker.load_bad_words()
 
     def export_log(self):
         """Export log พร้อม error handling"""
@@ -1400,13 +1407,15 @@ class BadWordDetectorApp(QWidget):
             
             # ปิดการเชื่อมต่อ Twitch และรอ thread จบ
             if self.twitch_thread:
+                # เก็บ reference เดิมไว้ก่อน เพราะ disconnect_twitch จะเซ็ตเป็น None
+                thread = self.twitch_thread
                 self.disconnect_twitch()
                 # รอ thread จบก่อนปิดโปรแกรม
-                if self.twitch_thread.isRunning():
-                    self.twitch_thread.wait(3000)  # รอ 3 วินาที
-                    if self.twitch_thread.isRunning():
-                        self.twitch_thread.terminate()  # Force terminate
-                        self.twitch_thread.wait(1000)  # รออีก 1 วินาที
+                if thread and thread.isRunning():
+                    thread.wait(3000)  # รอ 3 วินาที
+                    if thread.isRunning():
+                        thread.terminate()  # Force terminate
+                        thread.wait(1000)  # รออีก 1 วินาที
             
             
             event.accept()
@@ -1486,8 +1495,8 @@ class BadWordDetectorApp(QWidget):
 
     def reset_stats(self):
         """รีเซ็ตสถิติ"""
-        self.detection_count = 0
-        self.detection_times = []
+        # ใช้เมทอดเดียวกับปุ่มล้างข้อมูลเพื่อให้ UI และตัวนับทั้งหมดสอดคล้องกัน
+        self.clear_chat_messages()
         self.start_time = datetime.now()
         QMessageBox.information(self, 'รีเซ็ตสถิติ', 'รีเซ็ตสถิติเรียบร้อยแล้ว')
 
